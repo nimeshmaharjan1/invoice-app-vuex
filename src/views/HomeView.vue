@@ -24,12 +24,30 @@
         </div>
       </div>
     </header>
+    <!-- INVOICES -->
+    <main>
+      <div
+        v-if="store.state.invoiceData.length > 0 || store.state.invoicesLoaded"
+      >
+        <Invoice
+          v-for="(invoice, index) in store.state.invoiceData"
+          :key="index"
+          :invoice="invoice"
+        />
+      </div>
+      <div v-else class="empty flex flex-column">
+        <img src="../assets/illustration-empty.svg" alt="" />
+        <h3>There is nothing here.</h3>
+        <p>Create a new invoice by clicking the New Invoice button</p>
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from "@vue/reactivity";
 import { useStore } from "vuex";
+import Invoice from "../components/Invoice/Invoice.vue";
 const store = useStore();
 
 const filterMenu = ref(false);
@@ -42,7 +60,7 @@ const toggleFilterMenu = () => {
 </script>
 <style lang="scss" scoped>
 .home {
-  color: white;
+  color: #fff;
   .header {
     margin-bottom: 65px;
     .left,
@@ -62,10 +80,7 @@ const toggleFilterMenu = () => {
       .filter {
         position: relative;
         margin-right: 40px;
-        span,
-        img {
-          cursor: pointer;
-        }
+        cursor: pointer;
         img {
           margin-left: 12px;
           width: 9px;
@@ -85,7 +100,7 @@ const toggleFilterMenu = () => {
             padding: 10px 20px;
             &:hover {
               color: #1e2139;
-              background-color: white;
+              background-color: #fff;
             }
           }
         }
@@ -94,9 +109,6 @@ const toggleFilterMenu = () => {
         padding: 8px 10px;
         background-color: #7c5dfa;
         border-radius: 40px;
-        span {
-          background-color: #7c5dfa !important;
-        }
         .inner-button {
           margin-right: 8px;
           border-radius: 50%;
@@ -107,10 +119,28 @@ const toggleFilterMenu = () => {
           img {
             width: 10px;
             height: 10px;
-            background: none;
           }
         }
       }
+    }
+  }
+  .empty {
+    margin-top: 160px;
+    align-items: center;
+    img {
+      width: 214px;
+      height: 200px;
+    }
+    h3 {
+      font-size: 20px;
+      margin-top: 40px;
+    }
+    p {
+      text-align: center;
+      max-width: 224px;
+      font-size: 12px;
+      font-weight: 300;
+      margin-top: 16px;
     }
   }
 }

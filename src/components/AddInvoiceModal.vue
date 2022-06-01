@@ -1,33 +1,43 @@
-<script setup lang="ts">
+<script setup>
 import { ref } from "@vue/reactivity";
 import { onMounted, watch } from "@vue/runtime-core";
 import { useStore } from "vuex";
-
-export interface InvoiceModal {
-  dateOptions: Object;
-  billerStreetAddress?: string;
-  billerCity?: string;
-  billerZipCode?: string;
-  billerCountry?: string;
-  clientName?: string;
-  clientEmail?: string;
-  clientStreetAddress?: string;
-  clientCity?: string;
-  clientZipCode?: string;
-  clientCountry?: string;
-  invoiceDateUnix?: any;
-  invoiceDate?: string;
-  paymentTerms?: any;
-  paymentDueDateUnix?: any;
-  paymentDueDate?: any;
-  productDescription?: string;
-  invoicePending?: string;
-  invoiceDraft?: string;
-  invoiceItemList?: Array<string>;
-  invoiceTotal?: number;
-}
-const invoiceModal = ref<InvoiceModal>({
+import { uid } from "uid";
+import db from "../firebase/firebaseInit";
+import Loading from "./Loading.vue";
+// export interface InvoiceModal {
+//   dateOptions: Object;
+//   billerStreetAddress?: string;
+//   billerCity?: string;
+//   billerZipCode?: string;
+//   billerCountry?: string;
+//   clientName?: string;
+//   clientEmail?: string;
+//   clientStreetAddress?: string;
+//   clientCity?: string;
+//   clientZipCode?: string;
+//   clientCountry?: string;
+//   invoiceDateUnix?: any;
+//   invoiceDate?: string;
+//   paymentTerms?: any;
+//   paymentDueDateUnix?: any;
+//   paymentDueDate?: any;
+//   productDescription?: string;
+//   invoicePending?: any;
+//   invoiceDraft?: any;
+//   invoiceItemList?: any;
+//   invoiceTotal?: number;
+// }
+// export interface InvoiceItem {
+//   id: string;
+//   itemName: string;
+//   qty: string;
+//   price: number;
+//   total: number;
+// }
+const invoiceModal = ref({
   dateOptions: { year: "numeric", month: "short", day: "numeric" },
+  loading: null,
   billerStreetAddress: "",
   billerCity: "",
   billerZipCode: "",
@@ -42,10 +52,10 @@ const invoiceModal = ref<InvoiceModal>({
   invoiceDate: "",
   paymentTerms: "",
   paymentDueDateUnix: "",
-  paymentDueDate: new Date(),
+  paymentDueDate: "",
   productDescription: "",
-  invoicePending: "",
-  invoiceDraft: "",
+  invoicePending: null,
+  invoiceDraft: null,
   invoiceItemList: [],
   invoiceTotal: 0,
 });
@@ -63,17 +73,93 @@ watch(
   () => invoiceModal.value.paymentTerms,
   () => {
     const futureDate = new Date();
-    invoiceModal.value.paymentDueDate = "hello";
+    invoiceModal.value.paymentDueDateUnix = futureDate.setDate(
+      futureDate.getDate() + parseInt(invoiceModal.value.paymentTerms),
+    );
+    invoiceModal.value.paymentDueDate = new Date(
+      invoiceModal.value.paymentDueDateUnix,
+    ).toLocaleDateString("en-us", invoiceModal.value.dateOptions);
   },
 );
+const addNewInvoiceItem = () => {
+  invoiceModal.value.invoiceItemList?.push({
+    id: uid(),
+    itemName: "",
+    qty: "",
+    price: 0,
+    total: 0,
+  });
+};
+const deleteInvoiceItem = (id) => {
+  const filteredArr = invoiceModal.value.invoiceItemList.filter(
+    (item) => item.id === id,
+  );
+  invoiceModal.value.invoiceItemList = filteredArr;
+};
+const publishInvoice = () => {
+  invoiceModal.value.invoicePending = true;
+};
+const saveDraft = () => {
+  invoiceModal.value.invoiceDraft = true;
+};
+const calculateInvoiceTotal = () => {
+  invoiceModal.value.invoiceTotal = 0;
+  invoiceModal.value.invoiceItemList.forEach((item) => {
+    invoiceModal.value.invoiceTotal += item.total;
+  });
+};
+const uploadInvoice = async () => {
+  if (invoiceModal.value.invoiceItemList.length <= 0) {
+    alert("Please fill the form before submitting.");
+    return;
+  }
+  this.loading = true;
+  calculateInvoiceTotal();
+  const database = db.collection("invoices").doc();
+  await database.set({
+    invoiceId: uid(6),
+    billerStreetAddress: invoiceModal.value.billerStreetAddress,
+    billerCity: invoiceModal.value.billerCity,
+    billerZipCode: invoiceModal.value.billerZipCode,
+    billerCountry: invoiceModal.value.billerCountry,
+    clientName: invoiceModal.value.clientName,
+    clientEmail: invoiceModal.value.clientEmail,
+    clientStreetAddress: invoiceModal.value.clientStreetAddress,
+    clientCity: invoiceModal.value.clientCity,
+    clientZipCode: invoiceModal.value.clientZipCode,
+    clientCountry: invoiceModal.value.clientCountry,
+    invoiceDateUnix: invoiceModal.value.invoiceDateUnix,
+    invoiceDate: invoiceModal.value.invoiceDate,
+    paymentTerms: invoiceModal.value.paymentTerms,
+    paymentDueDateUnix: invoiceModal.value.paymentDueDateUnix,
+    paymentDueDate: invoiceModal.value.paymentDueDate,
+    productDescription: invoiceModal.value.productDescription,
+    invoicePending: invoiceModal.value.invoicePending,
+    invoiceDraft: invoiceModal.value.invoiceDraft,
+    invoiceItemList: invoiceModal.value.invoiceItemList,
+    invoiceTotal: invoiceModal.value.invoiceTotal,
+  });
+  this.loading = false;
+  store.commit("TOGGLE_INVOICE");
+};
+const submitForm = () => {
+  uploadInvoice();
+};
+const invoiceWrap = ref(null);
+function checkClick(e) {
+  if (e.target === invoiceWrap.value) {
+    store.commit("TOGGLE_MODAL");
+  }
+}
 </script>
 <template>
   <div
-    ref="invoice-wrap"
-    @click="checkClick"
+    ref="invoiceWrap"
+    @click="checkClick($event)"
     class="invoice-wrap flex flex-column"
   >
     <form @submit.prevent="submitForm" class="invoice-content">
+      <Loading v-show="invoiceModal.loading" />
       <h1>New Invoice</h1>
       <div class="bill-form flex flex-column">
         <h4>Bill Form</h4>
@@ -258,11 +344,17 @@ watch(
       <!-- Save/Exit -->
       <div class="save flex">
         <div class="left">
-          <button @click="closeInvoice" class="red">Cancel</button>
+          <button type="button" @click="closeInvoice" class="red">
+            Cancel
+          </button>
         </div>
         <div class="right flex">
-          <button @click="saveDraft" class="dark-purple">Save Draft</button>
-          <button @click="publishInvoice" class="purple">Create Invoice</button>
+          <button type="submit" @click="saveDraft" class="dark-purple">
+            Save Draft
+          </button>
+          <button type="submit" @click="publishInvoice" class="purple">
+            Create Invoice
+          </button>
         </div>
       </div>
     </form>

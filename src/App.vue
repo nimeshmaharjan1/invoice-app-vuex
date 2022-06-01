@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import Navigation from "./components/Navigation.vue";
-import InvoiceModal from "./components/InvoiceModal.vue";
+import InvoiceModal from "./components/AddInvoiceModal.vue";
 import { useStore } from "vuex";
+import Modal from "./components/Modal.vue";
 const store = useStore();
 let isMobile = ref<boolean>(false);
 const checkScreen = () => {
@@ -18,6 +19,7 @@ const checkScreen = () => {
 onMounted(() => {
   checkScreen();
   window.addEventListener("resize", checkScreen);
+  store.dispatch("GET_INVOICES");
 });
 </script>
 <template>
@@ -25,6 +27,7 @@ onMounted(() => {
     <div v-if="!isMobile" class="app flex flex-column">
       <Navigation />
       <div class="app-content flex flex-column">
+        <Modal v-if="store.state.modalActive" />
         <transition name="invoice-transition">
           <InvoiceModal v-if="store.state.invoiceModal"
         /></transition>

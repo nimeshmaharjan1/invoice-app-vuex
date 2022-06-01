@@ -9,8 +9,10 @@
   },
   "dependencies": {
     "ant-design-vue": "^3.2.5",
+    "firebase": "^8.3.2",
     "pinia": "^2.0.13",
     "sass": "^1.52.1",
+    "uid": "^2.0.0",
     "vue": "^3.2.33",
     "vue-router": "^4.0.14",
     "vuex": "^4.0.2"
