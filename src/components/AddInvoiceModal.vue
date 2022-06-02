@@ -170,9 +170,11 @@ const uploadInvoice = async () => {
     invoiceDraft: invoiceModal.value.invoiceDraft,
     invoiceItemList: invoiceModal.value.invoiceItemList,
     invoiceTotal: invoiceModal.value.invoiceTotal,
+    invoicePaid: null,
   });
   invoiceModal.value.loading = false;
   store.commit("TOGGLE_INVOICE");
+  store.dispatch("GET_INVOICES");
 };
 const updateInvoice = async () => {
   if (invoiceModal.value.invoiceItemList.length <= 0) {

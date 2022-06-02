@@ -108,24 +108,50 @@
   </div>
 </template>
 <script setup lang="ts">
-import { onMounted, ref } from "@vue/runtime-core";
-import { useRoute } from "vue-router";
+import { onMounted, onUpdated, ref, watch } from "@vue/runtime-core";
+import { computed } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useStore } from "vuex";
 
 const store = useStore();
 const route = useRoute();
+const router = useRouter();
 const currentInvoice = ref([]);
-const getCurrentInvoice = () => {
-  store.commit("SET_CURRENT_INVOICE", route.params.invoiceId);
-  currentInvoice.value = store.state.currentInvoiceArray[0];
-  console.log(currentInvoice.value);
+const getCurrentInvoice = async () => {
+  await store.commit("SET_CURRENT_INVOICE", route.params.invoiceId);
+  currentInvoice.value = await store.state.currentInvoiceArray[0];
 };
-onMounted(() => {
-  getCurrentInvoice();
+onMounted(async () => {
+  await getCurrentInvoice();
 });
+/**const isEdited = computed(() => {
+  return store.state.editInvoice;
+});
+onUpdated(() => {
+  console.log(isEdited.value);
+});
+*/
 const toggleEditInvoice = () => {
   store.commit("TOGGLE_EDIT_INVOICE");
   store.commit("TOGGLE_INVOICE");
+};
+const deleteInvoice = async (docId: any) => {
+  await store.dispatch("DELETE_INVOICE", docId);
+  router.push({ name: "home" });
+};
+watch(
+  () => store.state.editInvoice,
+  (value) => {
+    if (!value) {
+      currentInvoice.value = store.state.currentInvoiceArray[0];
+    }
+  },
+);
+const updateStatusToPaid = (docId: any) => {
+  store.dispatch("UPDATE_STATUS_TO_PAID", docId);
+};
+const updateStatusToPending = (docId: any) => {
+  store.dispatch("UPDATE_STATUS_TO_PENDING", docId);
 };
 </script>
 <style lang="scss" scoped>

@@ -8,6 +8,7 @@ export default createStore({
     invoicesLoaded: null,
     currentInvoiceArray: null,
     editInvoice: null,
+    isPaid: false,
   },
   mutations: {
     TOGGLE_INVOICE(state) {
@@ -34,6 +35,23 @@ export default createStore({
       state.invoiceData = state.invoiceData.filter(
         (invoice) => invoice.docId !== payload,
       );
+    },
+    UPDATE_STATUS_PAID(state, payload) {
+      state.invoiceData.forEach((invoice) => {
+        if (invoice.docId === payload) {
+          invoice.invoicePaid = true;
+          invoice.invoicePending = false;
+        }
+      });
+    },
+    UPDATE_STATUS_PENDING(state, payload) {
+      state.invoiceData.forEach((invoice) => {
+        if (invoice.docId === payload) {
+          invoice.invoicePaid = false;
+          invoice.invoicePending = true;
+          invoice.invoiceDraft = false;
+        }
+      });
     },
   },
   actions: {
@@ -78,6 +96,28 @@ export default createStore({
       commit("TOGGLE_INVOICE");
       commit("TOGGLE_EDIT_INVOICE");
       commit("SET_CURRENT_INVOICE", routeId);
+    },
+    async DELETE_INVOICE({ commit }, docId) {
+      const getInvoice = db.collection("invoices").doc(docId);
+      await getInvoice.delete();
+      commit("DELETE_INVOICE", docId); //?remove item from the store array
+    },
+    async UPDATE_STATUS_TO_PAID({ commit }, docId) {
+      const getInvoice = db.collection("invoices").doc(docId);
+      await getInvoice.update({
+        invoicePaid: true,
+        invoicePending: false,
+      });
+      commit("UPDATE_STATUS_PAID", docId);
+    },
+    async UPDATE_STATUS_TO_PENDING({ commit }, docId) {
+      const getInvoice = db.collection("invoices").doc(docId);
+      await getInvoice.update({
+        invoicePaid: false,
+        invoicePending: true,
+        invoiceDraft: false,
+      });
+      commit("UPDATE_STATUS_PENDING", docId);
     },
   },
   modules: {},
