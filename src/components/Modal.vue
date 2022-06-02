@@ -9,6 +9,9 @@ const closeModal = () => {
 const closeInvoice = () => {
   store.commit("TOGGLE_INVOICE");
   store.commit("TOGGLE_MODAL");
+  if (store.state.editInvoice) {
+    store.commit("TOGGLE_EDIT_INVOICE");
+  }
 };
 </script>
 <template>

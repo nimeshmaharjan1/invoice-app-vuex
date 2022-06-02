@@ -5,6 +5,8 @@ import { useStore } from "vuex";
 import { uid } from "uid";
 import db from "../firebase/firebaseInit";
 import Loading from "./Loading.vue";
+import { useRoute } from "vue-router";
+const route = useRoute();
 // export interface InvoiceModal {
 //   dateOptions: Object;
 //   billerStreetAddress?: string;
@@ -37,6 +39,7 @@ import Loading from "./Loading.vue";
 // }
 const invoiceModal = ref({
   dateOptions: { year: "numeric", month: "short", day: "numeric" },
+  docId: null,
   loading: null,
   billerStreetAddress: "",
   billerCity: "",
@@ -62,12 +65,41 @@ const invoiceModal = ref({
 const store = useStore();
 const closeInvoice = () => {
   store.commit("TOGGLE_INVOICE");
+  if (store.state.editInvoice) {
+    store.commit("TOGGLE_EDIT_INVOICE");
+  }
 };
 onMounted(() => {
-  invoiceModal.value.invoiceDateUnix = Date.now();
-  invoiceModal.value.invoiceDate = new Date(
-    invoiceModal.value.invoiceDateUnix,
-  ).toLocaleDateString("en-us", invoiceModal.value.dateOptions);
+  if (!store.state.editInvoice) {
+    invoiceModal.value.invoiceDateUnix = Date.now();
+    invoiceModal.value.invoiceDate = new Date(
+      invoiceModal.value.invoiceDateUnix,
+    ).toLocaleDateString("en-us", invoiceModal.value.dateOptions);
+  }
+  if (store.state.editInvoice) {
+    const currentInvoice = store.state.currentInvoiceArray[0];
+    invoiceModal.value.docId = currentInvoice.docId;
+    invoiceModal.value.billerStreetAddress = currentInvoice.billerStreetAddress;
+    invoiceModal.value.billerCity = currentInvoice.billerCity;
+    invoiceModal.value.billerZipCode = currentInvoice.billerZipCode;
+    invoiceModal.value.billerCountry = currentInvoice.billerCountry;
+    invoiceModal.value.clientName = currentInvoice.clientName;
+    invoiceModal.value.clientEmail = currentInvoice.clientEmail;
+    invoiceModal.value.clientStreetAddress = currentInvoice.clientStreetAddress;
+    invoiceModal.value.clientCity = currentInvoice.clientCity;
+    invoiceModal.value.clientZipCode = currentInvoice.clientZipCode;
+    invoiceModal.value.clientCountry = currentInvoice.clientCountry;
+    invoiceModal.value.invoiceDateUnix = currentInvoice.invoiceDateUnix;
+    invoiceModal.value.invoiceDate = currentInvoice.invoiceDate;
+    invoiceModal.value.paymentTerms = currentInvoice.paymentTerms;
+    invoiceModal.value.paymentDueDateUnix = currentInvoice.paymentDueDateUnix;
+    invoiceModal.value.paymentDueDate = currentInvoice.paymentDueDate;
+    invoiceModal.value.productDescription = currentInvoice.productDescription;
+    invoiceModal.value.invoicePending = currentInvoice.invoicePending;
+    invoiceModal.value.invoiceDraft = currentInvoice.invoiceDraft;
+    invoiceModal.value.invoiceItemList = currentInvoice.invoiceItemList;
+    invoiceModal.value.invoiceTotal = currentInvoice.invoiceTotal;
+  }
 });
 watch(
   () => invoiceModal.value.paymentTerms,
@@ -113,7 +145,7 @@ const uploadInvoice = async () => {
     alert("Please fill the form before submitting.");
     return;
   }
-  this.loading = true;
+  invoiceModal.value.loading = true;
   calculateInvoiceTotal();
   const database = db.collection("invoices").doc();
   await database.set({
@@ -139,10 +171,47 @@ const uploadInvoice = async () => {
     invoiceItemList: invoiceModal.value.invoiceItemList,
     invoiceTotal: invoiceModal.value.invoiceTotal,
   });
-  this.loading = false;
+  invoiceModal.value.loading = false;
   store.commit("TOGGLE_INVOICE");
 };
+const updateInvoice = async () => {
+  if (invoiceModal.value.invoiceItemList.length <= 0) {
+    alert("Please fill the form before submitting.");
+    return;
+  }
+  invoiceModal.value.loading = true;
+  calculateInvoiceTotal();
+  const database = db.collection("invoices").doc(invoiceModal.value.docId);
+  await database.update({
+    billerStreetAddress: invoiceModal.value.billerStreetAddress,
+    billerCity: invoiceModal.value.billerCity,
+    billerZipCode: invoiceModal.value.billerZipCode,
+    billerCountry: invoiceModal.value.billerCountry,
+    clientName: invoiceModal.value.clientName,
+    clientEmail: invoiceModal.value.clientEmail,
+    clientStreetAddress: invoiceModal.value.clientStreetAddress,
+    clientCity: invoiceModal.value.clientCity,
+    clientZipCode: invoiceModal.value.clientZipCode,
+    clientCountry: invoiceModal.value.clientCountry,
+    paymentTerms: invoiceModal.value.paymentTerms,
+    paymentDueDate: invoiceModal.value.paymentDueDate,
+    paymentDueDateUnix: invoiceModal.value.paymentDueDateUnix,
+    productDescription: invoiceModal.value.productDescription,
+    invoiceItemList: invoiceModal.value.invoiceItemList,
+    invoiceTotal: invoiceModal.value.invoiceTotal,
+  });
+  invoiceModal.value.loading = false;
+  const data = {
+    docId: invoiceModal.value.docId,
+    routeId: route.params.invoiceId,
+  };
+  store.dispatch("UPDATE_INVOICE", data);
+};
 const submitForm = () => {
+  if (store.state.editInvoice) {
+    updateInvoice();
+    return;
+  }
   uploadInvoice();
 };
 const invoiceWrap = ref(null);
@@ -160,7 +229,8 @@ function checkClick(e) {
   >
     <form @submit.prevent="submitForm" class="invoice-content">
       <Loading v-show="invoiceModal.loading" />
-      <h1>New Invoice</h1>
+      <h1 v-if="!store.state.editInvoice">New Invoice</h1>
+      <h1 v-else>Edit Invoice</h1>
       <div class="bill-form flex flex-column">
         <h4>Bill Form</h4>
         <div class="input flex flex-column">
@@ -349,11 +419,24 @@ function checkClick(e) {
           </button>
         </div>
         <div class="right flex">
-          <button type="submit" @click="saveDraft" class="dark-purple">
+          <button
+            v-if="!store.state.editInvoice"
+            type="submit"
+            @click="saveDraft"
+            class="dark-purple"
+          >
             Save Draft
           </button>
-          <button type="submit" @click="publishInvoice" class="purple">
+          <button
+            v-if="!store.state.editInvoice"
+            type="submit"
+            @click="publishInvoice"
+            class="purple"
+          >
             Create Invoice
+          </button>
+          <button v-if="store.state.editInvoice" class="purple" type="submit">
+            Update Invoice
           </button>
         </div>
       </div>
